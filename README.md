@@ -4,7 +4,7 @@ This algorithm helps build auxotrophic communities and further optimize them for
 ---
 
 ## Key Scripts  
-- **Masterscripts for Four Environments (effect of medium composition and oxygen availability):**
+- **Masterscripts for auxotrophy design and product optimisation:**
   - `AuxMasterHetero.m`  
   - `AuxMasterHomo.m`  
   - `FSEOF_dfba_masterscript.m`  
@@ -14,7 +14,7 @@ This algorithm helps build auxotrophic communities and further optimize them for
 ---
 
 ## Models Used  
-All models were obtained from the **BiGG Models** and **BioModels** databases. Some annotations were adjusted to ensure consistent formatting across the dataset.
+All models were obtained from the **BiGG Models** database. Some annotations were adjusted to ensure consistent formatting across the dataset.
 
 ---
 
