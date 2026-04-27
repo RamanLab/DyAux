@@ -1,0 +1,117 @@
+function [sortedResults]=testresults(model,pairedModelInfo,options,testRxns,var)
+
+[Intervention,prdtConc,mutantBiomass1,mutantBiomass2, mutantAbundance,biomass1,biomass2,abundance,Score]=deal({});
+%wild type FBA solutions
+CommunityResultRaw = dFBAComFSEOF(model,options);
+CommunityResultWT = compileComFSEOF(model,pairedModelInfo,options,CommunityResultRaw);
+metWT = CommunityResultWT.totPrdtMaxConc;
+sortedResults = struct('Score', [], 'Intervention', [], 'prdtConc', [],'mutantBiomass1', [], 'mutantBiomass2', [], 'mutantAbundance', [],'invTypeMax', [],'ScoreProduct', []);
+prdt = deal(zeros(length(testRxns),1));
+
+for i=1:length(testRxns)
+    %     restoreEnvironment(environment);
+    %     solverOK = changeCobraSolver(options.solver,'all');
+    %for amplification targets set value to maxflux
+    if strcmp(var,'amp')
+        index = find(strcmp(model.rxns,testRxns(i)));
+        %to change objective of model
+        modelMut=model;
+        modelMut.c(:) = 0;
+        modelMut.infoCom.spBm(find(contains(modelMut.infoCom.spAbbr,extractBefore(testRxns(i),'_'))==1))=testRxns(i);
+        modelMut.indCom.spBm(find(contains(modelMut.infoCom.spAbbr,extractBefore(testRxns(i),'_'))==1))=find(strcmp(modelMut.rxns,testRxns(i)));
+        modelMut.c(modelMut.indCom.spBm(:,:))=1;
+        MutResult = optimizeCbModel(modelMut,'max','one');
+        if MutResult.stat == 1
+            modeltest = changeRxnBounds(model,testRxns(i),0.5*MutResult.x(index)-1e-3,'l');
+            modeltest = changeRxnBounds(modeltest,testRxns(i),0.5*MutResult.x(index)+1e-3,'u');
+                
+        TestResultRaw = dFBAComFSEOF(modeltest,options);
+        TestResult = compileComFSEOF(modeltest,pairedModelInfo,options,TestResultRaw);
+        end
+        if ~isempty(TestResult)
+            prdt(i) = TestResult.totPrdtMaxConc;
+            biomass1{i} = TestResult.biomass(1);
+            biomass2{i} = TestResult.biomass(2);
+            abundance{i} = TestResult.abundance;
+        end
+        %for knockout targets set value to zero
+    elseif strcmp(var,'ko')
+        modeltest = changeRxnBounds(model,testRxns(i),0,'b');
+        TestResultRaw = dFBAComFSEOF(modeltest,options);
+        TestResult = compileComFSEOF(modeltest,pairedModelInfo,options,TestResultRaw);
+        if ~isempty(TestResult)
+            prdt(i) = TestResult.totPrdtMaxConc;
+            biomass1{i} = TestResult.biomass(1);
+            biomass2{i} = TestResult.biomass(2);
+            abundance{i} = TestResult.abundance;
+        end
+    end
+end
+
+%choose targets with non-zero flux improvement
+temp1=0;
+for i=1:length(testRxns)
+    if prdt(i)>0.01 && prdt(i)>1.05*CommunityResultWT.totPrdtMaxConc && all(abundance{i})>(options.abdCutoff/100)
+        temp1=temp1+1;
+        Result.Intervention(temp1) = testRxns(i);
+        Result.prdtConc(temp1)=num2cell(prdt(i));
+        Result.mutantBiomass1(temp1) = biomass1(i);
+        Result.mutantBiomass2(temp1) = biomass2(i);
+        Result.mutantAbundance(temp1) = abundance(i);
+        RawAbd(temp1) = 1 - abs(diff(abundance{i}));
+        RawPrdt(temp1) = prdt(i) / metWT;
+        RawBm(temp1) = (biomass1{i} + biomass2{i}) / sum(CommunityResultWT.biomass);
+    end
+    
+    
+    % if ~isempty(Result)
+    %     Result = {Intervention,prdtConc,mutantBiomass1,mutantBiomass2,mutantAbundance,metWT,Score};
+    %     [~, sortIdx] = sort(cell2mat(Result(:,end)), 'descend');
+    %     sortedResults = Result(sortIdx, :);
+    % else
+    %     sortedResults = [];
+    % end
+    if exist('Result','var')
+        % Normalize each component to [0, 1]
+        normAbd = (RawAbd - min(RawAbd)) / (max(RawAbd) - min(RawAbd));
+        normPrdt = (RawPrdt - min(RawPrdt)) / (max(RawPrdt) - min(RawPrdt));
+        normBm = (RawBm - min(RawBm)) / (max(RawBm) - min(RawBm));
+        
+        % Recompute final scores using normalized components
+        for k = 1:length(normAbd)
+            Result.Score(k) = options.ScoreWeights(1)*normAbd(k) + options.ScoreWeights(2)*normPrdt(k) + options.ScoreWeights(3)*normBm(k);
+            Result.ScoreProduct(k) = normAbd(k) * normPrdt(k) * normBm(k);
+        end
+        for i = 1:numel(Result)
+            [~, sortIdx] = sort(Result(i).Score, 'descend');
+            
+            % Now apply same sorting to every field
+            sortedResults(i).Score = Result(i).Score(sortIdx);
+            sortedResults(i).Intervention     = Result(i).Intervention(sortIdx);
+            sortedResults(i).prdtConc     = Result(i).prdtConc(sortIdx);
+            sortedResults(i).mutantBiomass1     = Result(i).mutantBiomass1(sortIdx);
+            sortedResults(i).mutantBiomass2    = Result(i).mutantBiomass2(sortIdx);
+            sortedResults(i).mutantAbundance     = Result(i).mutantAbundance(sortIdx);
+            sortedResults(i).ScoreProduct = Result(i).ScoreProduct(sortIdx);
+            %             if strcmp(var,'amp')
+            %                 sortedResults(i).invTypeMax(1,1:length(sortedResults(i).Score))= {'A'};
+            %             else
+            %                 sortedResults(i).invTypeMax{1,1:length(sortedResults(i).Score)}= 'K';
+            %             end
+        end
+        
+        
+    else
+        sortedResults = struct('Score', [], 'Intervention', [], 'prdtConc', [],'mutantBiomass1', [], 'mutantBiomass2', [], 'mutantAbundance', [],'invTypeMax', [],'ScoreProduct', []);
+    end
+    
+end
+
+
+if strcmp(var,'amp')
+    sortedResults.invTypeMax = repmat({'A'}, 1, length(sortedResults.Score));
+else
+    sortedResults.invTypeMax = repmat({'K'}, 1, length(sortedResults.Score));
+end
+
+end
