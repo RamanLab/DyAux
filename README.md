@@ -33,4 +33,4 @@ We recommend the ibm_cplex solver as DyAux uses *fastFVA* for efficiency.
 ## How to Use  
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/DyAux.git
+   git clone https://github.com/RamanLab/DyAux.git
