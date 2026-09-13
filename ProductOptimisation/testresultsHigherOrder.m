@@ -54,7 +54,7 @@ if intrvSize == 2
                 break; %because one of the rxns can't be amplified
             end
             
-            modeltest = changeRxnBounds(model, KoTargets(j), 0, 'b');
+            modeltest = changeRxnBounds(modeltest, KoTargets(j), 0, 'b');
             
             TestResultRaw = dFBAComFSEOF(modeltest,options);
             TestResult = compileComFSEOF(modeltest,pairedModelInfo,options,TestResultRaw);
