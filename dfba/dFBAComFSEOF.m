@@ -66,7 +66,10 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
             mediumExchange = intersect(model.indCom.EXsp(:,j),find(ismember(model.rxns,findRxnsFromMets(model,options.mediumMets(i)))));
             %update model bounds with computed uptake
             if ~isempty(mediumExchange) && ~isempty(uptake) && length(uptake)==length(biomass)
-                model.lb(mediumExchange) = - uptake(j)/(options.delt*biomass(j)); %uptake fluxes are negative
+                if biomass(j) > 0
+                    % update fluxes are negative
+                    model.lb(mediumExchange) = - uptake(j)/(biomass(j)*options.delt);
+                end
             end
         end
     end
