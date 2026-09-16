@@ -86,7 +86,7 @@ if Vmaxprdt>=1e-4
         DecFlux = sortrows(DecFlux, 1,'descend');
     end
     %Score in first column ; rows arranged according to inc order of scores
-    %Flux ranging across steps 0(biomass obj) to 10(product obj) in columns 2-12
-    %RxnNo in column 13
+    %Flux ranging across steps 0(biomass obj) to 10(product obj) in column 2
+    %RxnNo in column 3 and RxnName in column 4
 end
 end
