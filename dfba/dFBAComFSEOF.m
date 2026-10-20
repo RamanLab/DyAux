@@ -97,7 +97,7 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
                     end
                     if i==1 && prdtID(k,i)~=0
                         prdtRxns(k,1) = model.infoCom.EXsp(prdtID(k,1),1);
-                        if options.solver == 'ibm_cplex'
+                        if strcmp(options.solver, 'ibm_cplex')
                             [minFlux1, maxFlux1] = fastFVA(model, 90, 'max','ibm_cplex',prdtRxns(k,1));
                         else
                             [minFlux1, maxFlux1] = fluxVariability(model, 90, 'max',prdtRxns(k,1));
@@ -111,7 +111,7 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
                     end
                     if i==2 && prdtID(k,i)~=0
                         prdtRxns(k,2) = model.infoCom.EXsp(prdtID(k,2),2);
-                        if options.solver == 'ibm_cplex'
+                        if strcmp(options.solver, 'ibm_cplex')
                             [minFlux2, maxFlux2] = fastFVA(model, 90, 'max','ibm_cplex',prdtRxns(k,2));
                         else
                             [minFlux2, maxFlux2] = fluxVariability(model, 90, 'max',prdtRxns(k,2));
