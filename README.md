@@ -14,7 +14,7 @@ This algorithm helps build auxotrophic communities and further optimize them for
 ---
 
 ## Models Used  
-All models were obtained from the **BiGG Models** database. Some annotations were adjusted to ensure consistent formatting across the dataset.
+All models were obtained from the **BiGG Models** database. Some annotations were adjusted to ensure consistent formatting across the dataset. These annotated models can be found in models.zip
 
 ---
 
