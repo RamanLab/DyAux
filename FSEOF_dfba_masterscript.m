@@ -1,14 +1,18 @@
 tic
-Soneidensis=readCbModel('iSO783_shewan.mat'); Kpneumoniae = readCbModel('iYL1228_klebsi.mat');
-%define rich medium
-options.mediumMets = {'glc__D_e[u]';'ala__L_e[u]';'arg__L_e[u]';'asn__L_e[u]';'asp__L_e[u]';'cys__L_e[u]';'gln__L_e[u]';'glu__L_e[u]';'gly_e[u]';'his__L_e[u]';'ile__L_e[u]';'leu__L_e[u]';'lys__L_e[u]';'met__L_e[u]';'phe__L_e[u]';'pro__L_e[u]';'ser__L_e[u]';'thr__L_e[u]';'trp__L_e[u]';'tyr__L_e[u]';'val__L_e[u]';'4abz_e[u]';'adocbl_e[u]';'btn_e[u]';'ca2_e[u]';'cbl1_e[u]';'chol_e[u]';'cl_e[u]';'co2_e[u]';'cobalt2_e[u]';'cu2_e[u]';'fe2_e[u]';'fe3_e[u]';'fol_e[u]';'gua_e[u]';'h2_e[u]';'h2o_e[u]';'k_e[u]';'mg2_e[u]';'mn2_e[u]';'mobd_e[u]';'na1_e[u]';'nac_e[u]';'ncam_e[u]';'nh4_e[u]';'ni2_e[u]';'no3_e[u]';'o2_e[u]';'orot_e[u]';'pb2_e[u]';'h2s_e[u]';'xan_e[u]';'pheme_e[u]';'pi_e[u]';'pime_e[u]';'pnto__R_e[u]';'pydx_e[u]';'ribflv_e[u]';'sel_e[u]';'so3_e[u]';'so4_e[u]';'thm_e[u]';'thymd_e[u]';'ura_e[u]';'zn2_e[u]'};
+Ecoli = readCbModel('iML1515.mat'); Soneidensis=readCbModel('iSO783_shewan.mat');
+Kpneumoniae = readCbModel('iYL1228_klebsi.mat');% Bsubtilis = readCbModel('iYO844_subtilis.mat');
 
-%define medium concentration
+% define medium
+options.mediumMets = {'glc__D_e[u]';'ca2_e[u]';'cbl1_e[u]';'cl_e[u]';'cobalt2_e[u]';'cu2_e[u]';'fe2_e[u]';'fe3_e[u]';'h2_e[u]';'h2o_e[u]';'k_e[u]';'mg2_e[u]';'mn2_e[u]';'mobd_e[u]';'na1_e[u]';'nh4_e[u]';'ni2_e[u]';'no3_e[u]';'o2_e[u]';'pi_e[u]';'so4_e[u]';'zn2_e[u]';'sel_e[u]';'ser__L_e[u]';'so3_e[u]'};
+
+% %define medium concentration
 options.initMedium(1:length(options.mediumMets),1) = 10;
 
-speciesList = {Soneidensis, Kpneumoniae};
-biomassList = {'Biomass','Biomass'};
-spNameList = {'Soneidensis','Kpneumoniae'};
+
+speciesList = {Ecoli,Ecoli};
+biomassList = {'BIOMASS_Ec_iML1515_core_75p37M','BIOMASS_Ec_iML1515_core_75p37M'};
+spNameList = {'EcoliA','EcoliB'};
+
 
 orgCount = length(speciesList);
 [Communities,pairedModelInfo] = createPairwiseCommunity(speciesList,biomassList,spNameList);
@@ -22,22 +26,24 @@ options.delt = 0.1;
 options.maxTime = 10;
 options.solver = 'ibm_cplex';
 options.carbonSource = 'glc__D_e[u]';
+options.ConcRangeWeights = [0.5, 0.5];
 options.ScoreWeights = [1/3, 1/3, 1/3];
 
 options.abdCutoff = 10;
-options.Products={'EX_succ_e'};
+options.Products={'EX_spmd_e'};
 Community = Communities{1,1};
 
-dels = {'Soneidensis_ALAR','Kpneumoniae_ILETA'};
-%to create auxotrophic pair 
+dels = {'EcoliA_ARGSL','EcoliB_CHORM'};
+
+% %to create auxotrophic pair
 [Community] = changeRxnBounds(Community,dels,0,'b');
 
 %to set medium
-for i = 1: length(Communities)
-    Community = setMediumCom(Community, options.mediumMets,options.initMedium);
-end
+Community = setMediumCom(Community, options.mediumMets,options.initMedium);
+
 
 %Dynamic FBA for all communities
+
 allResults = {};
 for i= 1 : size(Communities,2)
     disp (i);
@@ -45,7 +51,7 @@ for i= 1 : size(Communities,2)
     CommunityResultsWT{1,i} = compileComFSEOF(Community,pairedModelInfo,options,allResults{i});
 end
 
-%perform FSEOF
+% perform FSEOF
 [FseofAll] = FSEOFall_comm(Community,pairedModelInfo(i,:),options);
 
 j=1;
@@ -66,34 +72,37 @@ for i=1:length(FseofAll{1,2})
     j=j+1;
 end
 
-[ Amp, KO, Amp_HO, KO_HO, AmpKO_2, AmpKO_3] = deal(struct('Score', [], 'Intervention', [], 'prdtConc', [],...
-'mutantBiomass1', [], 'mutantBiomass2', [], 'mutantAbundance', [],'invTypeMax', [], 'ScoreProduct', []));
+[ Amp, KO, Amp_HO, KO_HO, AmpKO_2, AmpKO_3] = deal(struct('Intervention', [], 'prdtMax', [], 'prdtMaxDiff', [],'prdtMin', [],'prdtMinDiff', [],'mutantBiomass1', [], 'mutantBiomass2', [], 'mutantAbundance', [],'invTypeMax', [],'RawAbd', [],'RawPrdt', [],'RawBm', []));
 i=1;
 
-Amp = testresults(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},'amp');
-KO = testresults(Community,{pairedModelInfo(i,:)},options,FseofAll{i,3},'ko');
+if ~isempty(FseofAll{i,2})
+    Amp = testresults(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},'amp');
+    Amp_HO = testresultsSimilarTargets(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},{'amp'},3); %multiple amps (A)
+elseif ~isempty(FseofAll{i,3})
+    KO = testresults(Community,{pairedModelInfo(i,:)},options,FseofAll{i,3},'ko');
+    KO_HO = testresultsSimilarTargets(Community,{pairedModelInfo(i,:)},options,FseofAll{i,3},{'ko'},3); %multiple KOs (K)
+end
 
-Amp_HO = testresultsSimilarTargets(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},{'amp'},3); %multiple amps (A)
-KO_HO = testresultsSimilarTargets(Community,{pairedModelInfo(i,:)},options,FseofAll{i,3},{'ko'},3); %multiple KOs (K)
+if ~isempty(FseofAll{i,2}) && ~isempty(FseofAll{i,3})
+    AmpKO_2 = testresultsHigherOrder(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},FseofAll{i,3},2,3); %Amp+KO (AK)
+    AmpKO_3 = testresultsHigherOrder(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},FseofAll{i,3},3,3); %Amp+Amp+KO, Amp+KO+KO (AAK,AKK)
+end
 
-AmpKO_2 = testresultsHigherOrder(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},FseofAll{i,3},2,3); %Amp+KO (AK)
-AmpKO_3 = testresultsHigherOrder(Community,{pairedModelInfo(i,:)},options,FseofAll{i,2},FseofAll{i,3},3,3); %Amp+Amp+KO, Amp+KO+KO (AAK,AKK)
+allSets = {Amp.Intervention, KO.Intervention, Amp_HO.Intervention, ...
+    KO_HO.Intervention, AmpKO_2.Intervention,  AmpKO_3.Intervention};
 
-Amp.invTypeMax(1,1:length(Amp.Score))= {'A'};
-KO.invTypeMax(1,1:length(KO.Score))= {'K'};
+Targets = horzcat(allSets{~cellfun(@isempty, allSets)});
 
-Targets = horzcat(Amp.Intervention,KO.Intervention,Amp_HO.Intervention,KO_HO.Intervention,AmpKO_2.Intervention,AmpKO_3.Intervention);
-
-structs = [Amp KO Amp_HO KO_HO AmpKO_2 AmpKO_3];
+structs = [Amp KO Amp_HO KO_HO AmpKO_2 AmpKO_3 ];
 fields = fieldnames(Amp);
 
 for i = 1:numel(fields)
     TargetsAll.(fields{i}) = horzcat(structs.(fields{i}));
 end
 
-if ~isempty(TargetsAll.Score)
+if ~isempty(TargetsAll.Intervention)
     for i= 1:length(TargetsAll.Intervention)
-        %to get length of the Intervetion
+        %         to get length of the Intervetion
         if iscell(TargetsAll.Intervention{i})
             TargetLength(i) = numel(TargetsAll.Intervention{i});     % Length of nested cell array
         else
@@ -115,19 +124,40 @@ if ~isempty(TargetsAll.Score)
             TargetsScoreTable{i,2} = TargetsAll.Intervention{1,i}{1,2};
             TargetsScoreTable{i,3} = TargetsAll.Intervention{1,i}{1,3};
         end
+        
+        %         Score the interventions
+        TargetsAll.Score(1,i) = options.ScoreWeights(1)*TargetsAll.RawAbd(i) + options.ScoreWeights(2)*TargetsAll.RawPrdt(i) + options.ScoreWeights(3)*TargetsAll.RawBm(i);
         TargetsScoreTable{i,4} = TargetsAll.Score(1,i);
-        TargetsScoreTable{i,5} = TargetsAll.ScoreProduct(1,i);
-        TargetsScoreTable{i,6} = TargetsAll.invTypeMax(1,i);
-        TargetsScoreTable{i,7} = TargetsAll.mutantBiomass1{1,i};
-        TargetsScoreTable{i,8} = TargetsAll.mutantBiomass2{1,i};
-        TargetsScoreTable{i,9} = TargetsAll.mutantAbundance{1,i};
-        TargetsScoreTable{i,10} = TargetsAll.prdtConc{1,i};
+        TargetsScoreTable{i,5} = TargetsAll.invTypeMax(1,i);
+        TargetsScoreTable{i,6} = TargetsAll.mutantBiomass1(1,i);
+        TargetsScoreTable{i,7} = TargetsAll.mutantBiomass2(1,i);
+        TargetsScoreTable{i,8} = TargetsAll.mutantAbundance{1,i};
+        TargetsScoreTable{i,9} = TargetsAll.prdtMin(1,i);
+        TargetsScoreTable{i,10} = TargetsAll.prdtMax(1,i);
     end
-    TargetsScoreTable = sortrows(TargetsScoreTable,4,'descend');
-    header = {'Intervention1','Intervention2','Intervention3','Score','ScoreProduct','Type of intervention','Mutant biomass flux Org1','Mutant biomass flux Org2','Mutant Abundance','Product Concentration'};
-    TargetsScoreTable = [header;TargetsScoreTable];
+    % sort by score, best first
+    TargetsScoreTable = sortrows(TargetsScoreTable, 4, 'descend');
+    
+    % rank with tolerance: scores within rankTol of a group's top score share a rank
+    rankTol     = 1e-3;
+    sortedScore = cell2mat(TargetsScoreTable(:,4));    % already descending
+    rankVec     = zeros(length(TargetsAll.Intervention), 1);
+    groupTop    = sortedScore(1);                      % top score of the current rank group
+    currRank    = 1;
+    for i = 1:length(TargetsAll.Intervention)
+        if groupTop - sortedScore(i) > rankTol         % outside the tolerance band
+            currRank = currRank + 1;                   % start a new rank group
+            groupTop = sortedScore(i);
+        end
+        rankVec(i) = currRank;
+    end
+    TargetsScoreTable(:,11) = num2cell(rankVec);       % rank as last column
+    
+    header = {'Intervention1','Intervention2','Intervention3','Score','Type of intervention', ...
+        'Mutant biomass flux Org1','Mutant biomass flux Org2','Mutant Abundance', ...
+        'Minimum Product Concentration','Maximum Product Concentration','Rank'};
+    TargetsScoreTable = [header; TargetsScoreTable];
 else
-    disp ('No targets found');
+    disp('No targets found');
     TargetsScoreTable = [];
 end
-toc
