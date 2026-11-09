@@ -19,7 +19,7 @@ function [result] = dFBAComFSEOF(model,options)
 % modelName: Community model name
 
 %% to initiate necessary arrays
-result = struct; 
+result = struct;
 minConc = 0.001; %the minimal detectable concentration in medium
 temp = 0; %iteration number through timeSteps
 
@@ -46,6 +46,12 @@ infeasibleCount=0; %to keep track of infeasible solutions
 biomass(:) = options.initBiomass;
 %to estimate concentration of products
 [prdtFVAMinConc1,prdtFVAMinConc2,prdtFVAMaxConc1,prdtFVAMaxConc2]= deal(zeros(length(options.Products),round(options.maxTime/options.delt,0)));
+
+for i=1:length(model.infoCom.spName)
+    model.lb(nonzeros(model.indCom.EXsp(:,i)))=-1000;
+    model.ub(nonzeros(model.indCom.EXsp(:,i)))=1000;
+end
+
 
 %% dynamic FBA
 for timeStep = 1: round(options.maxTime/options.delt,0)
@@ -75,14 +81,25 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
     end
     
     %standard FBA of model
-    solution = optimizeCbModel(model,'max','one');
+%     solution = optimizeCbModel(model,'max');
+    
+    s0 = optimizeCbModel(model,'max');
+    if s0.stat==1
+        m2 = model;  idx = find(model.c);
+        m2.lb(idx) = 0.999*s0.x(idx);          % small slack avoids infeasibility
+        solution = optimizeCbModel(m2,'max','one');
+        if solution.stat~=1, solution = s0; end % fall back to plain FBA
+    else
+        solution = s0;
+    end
+    
     %% update biomass and growth rates
     for i=1:length(biomass)
         statarr(temp) = solution.stat;
         
         if biomass(i)==0 && solution.stat==1
             biomass_added(i,temp) = 0;
-            solnarr(:,temp) = 0; 
+            solnarr(:,temp) = 0;
         else
             if solution.stat ==1 && infeasibleCount<=5
                 biomass_added(i,temp) = solution.x(model.indCom.spBm(i))*biomass(i)*options.delt;
@@ -103,7 +120,7 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
                             [minFlux1, maxFlux1] = fluxVariability(model, 90, 'max',prdtRxns(k,1));
                         end
                         if ~isempty(minFlux1) && ~isnan(minFlux1)
-                            prdtFVAMinConc1(k,temp) = minFlux1*biomass(i)*options.delt;               
+                            prdtFVAMinConc1(k,temp) = minFlux1*biomass(i)*options.delt;
                         end
                         if ~isempty(maxFlux1) && ~isnan(maxFlux1)
                             prdtFVAMaxConc1(k,temp) = maxFlux1*biomass(i)*options.delt;
@@ -135,19 +152,17 @@ for timeStep = 1: round(options.maxTime/options.delt,0)
         
         biomass(i) = biomass(i) + biomass_added(i,temp);
         biomassarr(i,temp) = biomass(i);
-%         solnarr(1:size(model.rxns,1),temp) = soln_arr';
+
     end
     
     %% to update the concentration of all media components
     for m =1:length(options.mediumMets)
-        for i=1:length(biomass)
-            %only update media components for species that are actually present
-            if biomass(i)>0  && solution.stat ==1
-                %in case a specific model does not have metabolite m
-                metIndex = intersect(model.indCom.EXcom,find(ismember(model.rxns,findRxnsFromMets(model,options.mediumMets(m)))));
-                if solution.stat == 1 && ~isempty(metIndex)
-                    medium(m) = medium(m) + solution.x(metIndex)*biomass(i)*options.delt;
-                end
+        %only update media components for species that are actually present
+        if sum(biomass)>0  && solution.stat ==1
+            %in case a specific model does not have metabolite m
+            metIndex = intersect(model.indCom.EXcom,find(ismember(model.rxns,findRxnsFromMets(model,options.mediumMets(m)))));
+            if solution.stat == 1 && ~isempty(metIndex)
+                medium(m) = medium(m) + solution.x(metIndex)*sum(biomass)*options.delt;
             end
         end
     end
