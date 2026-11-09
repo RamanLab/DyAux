@@ -1,11 +1,31 @@
-function [sortedAuxotrophScore,sortedAuxotrophResults] = FindAuxotroph(Community,pairedModelInfo,options,Donor,Size)
+function [sortedAuxotrophScore,sortedAuxotrophResults,runInfo] = FindAuxotroph(Community,pairedModelInfo,options,Donor,Size,rngState)
 
+% rngState (optional): a state saved from an earlier run, to reproduce it exactly
+
+% restore a saved state, or start a fresh unpredictable one
+if nargin >= 6 && ~isempty(rngState)
+    rng(rngState);                
+else
+    rng('shuffle');                
+end
+
+runInfo.rngState     = rng;        
+runInfo.matlabVersion = version;
+runInfo.date         = datestr(now);
+runInfo.Size         = Size;
+runInfo.Donor        = Donor;
+
+%%
 options.Products=[]; %to omit running FVA for product
 sortedAuxotrophScore =[]; sortedAuxotrophResults=[];
 
+for i=1:length(Community.infoCom.spName)
+    Community.lb(nonzeros(Community.indCom.EXsp(:,i)))=-1000;
+    Community.ub(nonzeros(Community.indCom.EXsp(:,i)))=1000;
+end
+
 WTResults = dFBAComFSEOF(Community, options);
 CommunityWT = compileComFSEOF(Community, pairedModelInfo, options, WTResults);
-
 
 if Donor>0
     if Donor==1
@@ -39,7 +59,7 @@ if Donor>0
         soln= optimizeCbModel(KoRecepient);
         if soln.f>0.001
             allResults = dFBAComFSEOF(KoRecepient, options);
-            KoResult = compileComFSEOF(Community, pairedModelInfo, options, allResults);
+            KoResult = compileComFSEOF(KoRecepient, pairedModelInfo, options, allResults);
             
             if min(KoResult.abundance) > 0.105 && min(KoResult.biomass) > 0.105
                 temp = temp + 1;
@@ -125,7 +145,7 @@ elseif Donor==0
         soln= optimizeCbModel(KoRecepient);
         if soln.f>0.001
             allResults = dFBAComFSEOF(KoRecepient, options);
-            KoResult = compileComFSEOF(Community, pairedModelInfo, options, allResults);
+            KoResult = compileComFSEOF(KoRecepient, pairedModelInfo, options, allResults);
             
             if min(KoResult.abundance) > 0.105 && min(KoResult.biomass) > 0.105
                 temp = temp + 1;
@@ -155,4 +175,6 @@ elseif Donor==0
         sortedAuxotrophResults = AuxotrophResults(:, sortIdx);
     end
 end
+runInfo.nCandidatesTried = k;      
+runInfo.nFound = temp;             
 end
