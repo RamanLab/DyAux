@@ -22,12 +22,12 @@ function[FseofAll]= FSEOFall_comm(model,pairedModelInfo,options)
     for i = 1:length(options.Products)
         [FluxMatrix, IncFlux, DecFlux] = FSEOF_comm (model,pairedModelInfo,options.Products(i),eliListInc,eliListDec,options);
         if ~isempty(IncFlux) 
-            IncAll{i,1} = IncFlux(:,4); 
+            IncAll{i,1} = IncFlux(:,3); 
         else
             IncAll{i,1} = [];
         end
         if ~isempty(DecFlux)
-            DecAll{i,1} = DecFlux(:,4); 
+            DecAll{i,1} = DecFlux(:,3); 
         else 
             DecAll{i,1} = [];
         end
