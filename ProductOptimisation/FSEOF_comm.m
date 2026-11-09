@@ -1,13 +1,8 @@
 %FSEOF
 function [FluxMatrix, IncFlux, DecFlux] = FSEOF_comm (model,pairedModelInfo,TargetRxn,eliListInc,eliListDec,options)
 
-%Maximum biomass
-allResults = dFBAComFSEOF(model,options); %%%
+allResults = dFBAComFSEOF(model,options); 
 CommunityResults = compileComFSEOF(model,pairedModelInfo,options,allResults);
-Vbiomass = CommunityResults.biomass;
-
-%% Initial product and maximum product
-Viniprdt = CommunityResults.totPrdtMaxConc;
 
 %to change objective of model
 modelPrdt=model;
@@ -60,33 +55,23 @@ if Vmaxprdt>=1e-4
             FluxMatrix(:,steps(j)+1) = NaN;
             fprintf('%02d: infeasible solution at Venfprdt = %f \n\n',steps(j),Venfprdt);
         end
-    end
+    end    
     
-    %% identification of amplification and knockout targets
-    % for RxnIndex = 1:length(model.rxns)
     %% identification of amplification and knockout targets
     for RxnIndex = 1:length(model.rxns)
        if FluxMatrix (RxnIndex, 1) < FluxMatrix (RxnIndex, 3) && FluxMatrix (RxnIndex, 4) <= FluxMatrix (RxnIndex, 6) && ~ismember(model.rxns(RxnIndex),eliListInc)
             NewRowI = FluxMatrix(RxnIndex,:);
-            Score = 1/((Vmaxprdt-Viniprdt)/abs(abs(FluxMatrix (RxnIndex, 9)) - abs(FluxMatrix (RxnIndex, 2))));
-            NewRowI = [Score, NewRowI , RxnIndex, model.rxns(RxnIndex)];
+            NewRowI = [NewRowI , RxnIndex, model.rxns(RxnIndex)];
             IncFlux = [IncFlux; NewRowI];
        elseif FluxMatrix (RxnIndex, 1) > FluxMatrix (RxnIndex, 3) && FluxMatrix (RxnIndex, 4) >= FluxMatrix (RxnIndex, 6) && ~ismember(model.rxns(RxnIndex),eliListDec)
             NewRowII = FluxMatrix(RxnIndex,:);
-            Score = 1/((Vmaxprdt-Viniprdt)/abs(abs(FluxMatrix (RxnIndex, 9)) - abs(FluxMatrix (RxnIndex, 2))));
-            NewRowII = [Score, NewRowII , RxnIndex, model.rxns(RxnIndex)];
+            NewRowII = [NewRowII , RxnIndex, model.rxns(RxnIndex)];
             DecFlux = [DecFlux ; NewRowII];         
        end
     end
     
-    if ~isempty(IncFlux)
-        IncFlux = sortrows(IncFlux, 1,'descend');
-    end
-    if ~isempty(DecFlux)
-        DecFlux = sortrows(DecFlux, 1,'descend');
-    end
-    %Score in first column ; rows arranged according to inc order of scores
-    %Flux ranging across steps 0(biomass obj) to 10(product obj) in column 2
-    %RxnNo in column 3 and RxnName in column 4
+    
+    %Flux ranging across steps 0(biomass obj) to 10(product obj) in column 1
+    %RxnNo in column 2 and RxnName in column 3
 end
 end
